@@ -2,6 +2,7 @@ package driver
 
 import (
 	"strconv"
+	"strings"
 )
 
 type Query func(query *map[string]string)
@@ -45,4 +46,27 @@ func (c *Pan115Client) GetShareSnap(shareCode, receiveCode, dirID string, Querie
 	}
 
 	return &result, nil
+}
+
+// ReceiveShare received files or folders from the shared link
+func (c *Pan115Client) ReceiveShare(shareCode, receiveCode, dirID string, fileIDs ...string) error {
+	if len(fileIDs) == 0 {
+		return nil
+	}
+
+	form := map[string]string{
+		"share_code":   shareCode,
+		"receive_code": receiveCode,
+		"file_id":      strings.Join(fileIDs, ","),
+		"cid":          dirID,
+		"user_id":      strconv.FormatInt(c.UserID, 10),
+	}
+
+	result := BasicResp{}
+	req := c.NewRequest().
+		SetFormData(form).
+		ForceContentType("application/json;charset=UTF-8").
+		SetResult(&result)
+	resp, err := req.Post(ApiShareReceive)
+	return CheckErr(err, &result, resp)
 }

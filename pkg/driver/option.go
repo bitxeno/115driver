@@ -1,11 +1,10 @@
 package driver
 
 import (
+	"crypto/tls"
 	"net/http"
 	"strconv"
 	"time"
-
-	"crypto/tls"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -75,9 +74,16 @@ type GetFileOption struct {
 	pageSize int64
 	offset   int64
 	showDir  string
+	apiURL   string
 }
 
 type GetFileOptions func(o *GetFileOption)
+
+func WithApiURL(url string) GetFileOptions {
+	return func(o *GetFileOption) {
+		o.apiURL = url
+	}
+}
 
 func WithLimit(pageSize int64) GetFileOptions {
 	return func(o *GetFileOption) {
@@ -115,6 +121,10 @@ func WithAsc(d bool) GetFileOptions {
 	}
 }
 
+func (o *GetFileOption) GetApiURL() string {
+	return o.apiURL
+}
+
 func (o *GetFileOption) GetOrder() string {
 	return o.order
 }
@@ -142,6 +152,7 @@ func DefaultGetFileOptions() *GetFileOption {
 		pageSize: int64(56),
 		offset:   int64(0),
 		showDir:  "1",
+		apiURL:   ApiFileList,
 	}
 }
 
@@ -153,7 +164,8 @@ type UploadMultipartOptions struct {
 
 func DefalutUploadMultipartOptions() *UploadMultipartOptions {
 	return &UploadMultipartOptions{
-		ThreadsNum:       10,
+		// oss 启用Sequential必须按顺序上传
+		ThreadsNum:       1,
 		Timeout:          time.Hour * 24,
 		TokenRefreshTime: time.Minute * 50,
 	}
@@ -176,5 +188,52 @@ func UploadMultipartWithTimeout(timeout time.Duration) UploadMultipartOption {
 func UploadMultipartWithTokenRefreshTime(refreshTime time.Duration) UploadMultipartOption {
 	return func(o *UploadMultipartOptions) {
 		o.TokenRefreshTime = refreshTime
+	}
+}
+
+type ListOptions struct {
+	ApiURLs []string
+}
+
+func DefaultListOptions() *ListOptions {
+	return &ListOptions{
+		ApiURLs: []string{ApiFileList},
+	}
+}
+
+type ListOption func(o *ListOptions)
+
+func WithApiURLs(urls ...string) ListOption {
+	return func(o *ListOptions) {
+		if len(urls) > 0 {
+			o.ApiURLs = urls
+		}
+	}
+}
+
+func WithMultiUrls() ListOption {
+	return WithApiURLs([]string{
+		ApiFileList,
+		ApiFileList1,
+		// ApiFileList2,
+		// ApiFileList3,
+	}...)
+}
+
+type OfflineOptions struct {
+	appVer string
+}
+
+func DefaultOfflineOptions() OfflineOptions {
+	return OfflineOptions{
+		appVer: appVer,
+	}
+}
+
+type OfflineOption func(o *OfflineOptions)
+
+func WithAppVer(appVer string) OfflineOption {
+	return func(o *OfflineOptions) {
+		o.appVer = appVer
 	}
 }

@@ -22,22 +22,26 @@ func TestMain(m *testing.M) {
 
 func TestImportFromCookie(t *testing.T) {
 	cr := &Credential{}
-	assert.Nil(t, cr.FromCookie("UID=1;CID=2;SEID=3;other=4"))
+	assert.Nil(t, cr.FromCookie("UID=1;CID=2;SEID=3;KID=12;other=4"))
 	assert.Error(t, ErrBadCookie, cr.FromCookie(""))
 	assert.Error(t, ErrBadCookie, cr.FromCookie("k=a;;"))
 	assert.Error(t, ErrBadCookie, cr.FromCookie("1=2;2=3;3=4"))
 	assert.Error(t, ErrBadCookie, cr.FromCookie("1=2;2=3;3=4"))
 }
 
-func TestLogin(t *testing.T) {
+func TestLoginErr(t *testing.T) {
 	assert.Error(t, New().ImportCredential(&Credential{}).LoginCheck())
+}
+
+func TestBadCookie(t *testing.T) {
+	assert.Error(t, New().ImportCredential(&Credential{}).CookieCheck())
 }
 
 func teardown(t *testing.T) func(t *testing.T) {
 	cr := &Credential{}
 	assert.Nil(t, cr.FromCookie(cookieStr))
 	client = New(UA(UA115Browser), WithDebug(), WithTrace()).ImportCredential(cr)
-	assert.Nil(t, client.LoginCheck())
+	assert.Nil(t, client.CookieCheck())
 	return func(t *testing.T) {}
 }
 
@@ -142,13 +146,35 @@ func TestList(t *testing.T) {
 	down := teardown(t)
 	defer down(t)
 
-	f, err := client.List("0")
-	assert.NotEmpty(t, *f)
+	f1, err := client.List("0", WithApiURLs(ApiFileList))
+	assert.NotEmpty(t, *f1)
 	assert.Nil(t, err)
+	f2, err := client.List("0", WithApiURLs(ApiFileList1))
+	assert.NotEmpty(t, *f2)
+	assert.Nil(t, err)
+	// f3, err := client.List("0", WithApiURLs(ApiFileList2))
+	// assert.NotEmpty(t, *f3)
+	// assert.Nil(t, err)
+	// f4, err := client.List("0", WithApiURLs(ApiFileList3))
+	// assert.NotEmpty(t, *f4)
+	// assert.Nil(t, err)
+
+	assert.Equal(t, *f1, *f2)
+	// assert.Equal(t, *f1, *f3)
+	// assert.Equal(t, *f1, *f4)
 	dirName := NowMilli().String()
-	f, err = client.List(dirName)
+	f, err := client.List(dirName)
 	assert.Nil(t, err)
 	assert.Empty(t, *f)
+}
+
+func TestDirName2CID(t *testing.T) {
+	down := teardown(t)
+	defer down(t)
+
+	cid, err := client.DirName2CID("Pay")
+	assert.NotEmpty(t, cid)
+	assert.Nil(t, err)
 }
 
 func TestListPage(t *testing.T) {
@@ -249,8 +275,14 @@ func TestUploadMultipart(t *testing.T) {
 	assert.Nil(t, err)
 
 	randStr := NowMilli().String()
-	_, err = f.WriteString(randStr)
-	assert.Nil(t, err)
+	targetSize := 2048 // 目标文件大小，单位字节，这里设置为2KB
+	currentSize := 0
+	for currentSize < targetSize {
+		// 获取当前时间的毫秒时间戳字符串作为随机内容的一部分
+		n, err := f.WriteString(randStr)
+		assert.Nil(t, err)
+		currentSize += n
+	}
 
 	_, err = f.Seek(0, io.SeekStart)
 	assert.Nil(t, err)
@@ -337,15 +369,44 @@ func TestQRCodeStartByOtherApp(t *testing.T) {
 	_, err = f.Write(b)
 	assert.Nil(t, err)
 
-	status, err := c.QRCodeStatus(s)
-	assert.Nil(t, err)
+	timer := time.NewTimer(50 * time.Second)
+	defer timer.Stop()
+	ch := make(chan error)
+	go func() {
+		for {
+			status, err := c.QRCodeStatus(s)
+			if err != nil {
+				ch <- err
+			}
 
-	if status.IsAllowed() {
-		_, err = c.QRCodeLoginWithApp(s, LoginAppIOS)
-		assert.Nil(t, err)
-	} else {
-		_, err = c.QRCodeLoginWithApp(s, LoginAppIOS)
-		assert.Error(t, err)
+			switch {
+			case status.IsAllowed():
+				_, err = c.QRCodeLoginWithApp(s, LoginAppIOS)
+				ch <- err
+				return
+			case status.IsCanceled(), status.IsExpired():
+				ch <- nil
+				return
+			case status.IsWaiting(), status.IsScanned():
+				time.Sleep(1 * time.Second)
+			default:
+				_, err = c.QRCodeLoginWithApp(s, LoginAppIOS)
+				ch <- err
+				return
+			}
+		}
+	}()
+
+LOOP:
+	for {
+		select {
+		case <-timer.C:
+			assert.True(t, false, "time out")
+			break LOOP
+		case err := <-ch:
+			assert.NoError(t, err)
+			break LOOP
+		}
 	}
 }
 
@@ -364,4 +425,13 @@ func TestGetVersion(t *testing.T) {
 	vers, err := client.GetAppVersion()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, vers)
+}
+
+func TestGetInfo(t *testing.T) {
+	down := teardown(t)
+	defer down(t)
+
+	info, err := client.GetInfo()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, info.SpaceInfo)
 }

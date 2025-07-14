@@ -63,6 +63,9 @@ func (t *OfflineTask) GetStatus() string {
 // ListOfflineTask list tasks
 func (c *Pan115Client) ListOfflineTask(page int64) (OfflineTaskResp, error) {
 	result := OfflineTaskResp{}
+	if isCalledByAlistV3() {
+		return result, ErrorNotSupportAlist
+	}
 	req := c.NewRequest().
 		SetQueryParam("page", strconv.FormatInt(page, 10)).
 		SetResult(&result).
@@ -78,16 +81,26 @@ func (c *Pan115Client) ListOfflineTask(page int64) (OfflineTaskResp, error) {
 
 // AddOfflineTaskURIs adds offline tasks by download URIs.
 // supports http, ed2k, magent
-func (c *Pan115Client) AddOfflineTaskURIs(uris []string, saveDirID string) (hashes []string, err error) {
+func (c *Pan115Client) AddOfflineTaskURIs(uris []string, saveDirID string, opts ...OfflineOption) (hashes []string, err error) {
+	if isCalledByAlistV3() {
+		return nil, ErrorNotSupportAlist
+	}
+	opt := DefaultOfflineOptions()
+
+	for _, o := range opts {
+		o(&opt)
+	}
 	count := len(uris)
 	if count == 0 {
 		return
 	}
 
-	if c.UserID < 0 {
-		if err := c.LoginCheck(); err != nil {
+	if c.UserID <= 0 {
+		userInfo, err := c.GetUser()
+		if err != nil {
 			return nil, err
 		}
+		c.UserID = userInfo.UserID
 	}
 
 	key := crypto.GenerateKey()
@@ -97,7 +110,7 @@ func (c *Pan115Client) AddOfflineTaskURIs(uris []string, saveDirID string) (hash
 	params := map[string]string{
 		"ac":         "add_task_urls",
 		"wp_path_id": saveDirID,
-		"app_ver":    appVer,
+		"app_ver":    opt.appVer,
 		"uid":        strconv.FormatInt(c.UserID, 10),
 	}
 	for i, uri := range uris {
@@ -141,6 +154,9 @@ func (c *Pan115Client) AddOfflineTaskURIs(uris []string, saveDirID string) (hash
 
 // DeleteOfflineTasks deletes tasks.
 func (c *Pan115Client) DeleteOfflineTasks(hashes []string, deleteFiles bool) error {
+	if isCalledByAlistV3() {
+		return ErrorNotSupportAlist
+	}
 	form := url.Values{}
 	for _, hash := range hashes {
 		form.Add("hash", hash)

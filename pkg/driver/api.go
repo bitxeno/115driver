@@ -2,20 +2,26 @@ package driver
 
 const (
 	ApiGetVersion = "https://appversion.115.com/1/web/1.0/api/chrome"
-	// login
-	ApiLoginCheck = "https://passportapi.115.com/app/1.0/web/1.0/check/sso"
-	ApiUserInfo   = "https://my.115.com/?ct=ajax&ac=nav"
 
+	// login
+	ApiLoginCheck  = "https://passportapi.115.com/app/1.0/web/1.0/check/sso"
+	ApiUserInfo    = "https://my.115.com/?ct=ajax&ac=nav"
+	ApiStatusCheck = "https://my.115.com/?ct=guide&ac=status"
 	// dir
 	ApiDirAdd = "https://webapi.115.com/files/add"
+	ApiDirName2CID = "https://webapi.115.com/files/getid"
 
 	// file
-	ApiFileDelete = "https://webapi.115.com/rb/delete"
-	ApiFileMove   = "https://webapi.115.com/files/move"
-	ApiFileCopy   = "https://webapi.115.com/files/copy"
-	ApiFileRename = "https://webapi.115.com/files/batch_rename"
+	ApiFileDelete    = "https://webapi.115.com/rb/delete"
+	ApiFileMove      = "https://webapi.115.com/files/move"
+	ApiFileCopy      = "https://webapi.115.com/files/copy"
+	ApiFileRename    = "https://webapi.115.com/files/batch_rename"
+	ApiFileIndexInfo = "https://webapi.115.com/files/index_info"
 
 	ApiFileList       = "https://webapi.115.com/files"
+	ApiFileList1       = "http://web.api.115.com/files"
+	// ApiFileList2       = "http://anxia.com/webapi/files"
+	// ApiFileList3       = "http://v.anxia.com/webapi/files"
 	ApiFileListByName = "https://aps.115.com/natsort/files.php"
 
 	ApiFileStat = "https://webapi.115.com/category/get"
@@ -26,8 +32,9 @@ const (
 	ApiShareReceive = "https://webapi.115.com/share/receive"
 
 	// download
-	ApiDownloadGetUrl      = "https://proapi.115.com/app/chrome/downurl"
-	ApiDownloadGetShareUrl = "https://proapi.115.com/app/share/downurl"
+	ApiDownloadGetUrl        = "https://proapi.115.com/app/chrome/downurl"
+	ApiDownloadGetShareUrl   = "https://proapi.115.com/app/share/downurl"
+	AndroidApiDownloadGetUrl = "https://proapi.115.com/android/2.0/ufile/download"
 
 	// offline download
 	ApiAddOfflineUrl   = "https://lixian.115.com/lixianssp/?ac=add_task_urls"
